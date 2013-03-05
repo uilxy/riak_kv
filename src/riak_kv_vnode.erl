@@ -52,7 +52,8 @@
          repair_filter/1,
          hashtree_pid/1,
          rehash/3,
-         request_hashtree_pid/1]).
+         request_hashtree_pid/1,
+         get_state_partition/1]).
 
 %% riak_core_vnode API
 -export([init/1,
@@ -322,6 +323,11 @@ rehash(Preflist, Bucket, Key) ->
                                    {rehash, Bucket, Key},
                                    ignore,
                                    riak_kv_vnode_master).
+
+%% @doc Get the partition index from the vnode `State'.
+-spec get_state_partition(state()) -> index().
+get_state_partition(_=#state{idx=Partition}) ->
+    Partition.
 
 %% VNode callbacks
 
