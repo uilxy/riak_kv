@@ -23,6 +23,12 @@
 -author('Kevin Smith <kevin@basho.com>').
 -author('John Muellerleile <johnm@basho.com>').
 
+-ifdef(TEST).
+-define(INDEX(A, B, C), ok).
+-else.
+-define(INDEX(Obj, Reason, State), yz_kv:index(Obj, Reason, State)).
+-endif.
+
 -behaviour(riak_core_vnode).
 
 %% API
@@ -781,6 +787,7 @@ do_backend_delete(BKey, RObj, State = #state{mod = Mod, modstate = ModState}) ->
     case Mod:delete(Bucket, Key, IndexSpecs, ModState) of
         {ok, UpdModState} ->
             riak_kv_index_hashtree:delete(BKey, State#state.hashtrees),
+            ?INDEX(RObj, delete, State),
             update_index_delete_stats(IndexSpecs),
             State#state{modstate = UpdModState};
         {error, _Reason, UpdModState} ->
@@ -890,6 +897,7 @@ perform_put({true, Obj},
     case Mod:put(Bucket, Key, IndexSpecs, Val, ModState) of
         {ok, UpdModState} ->
             update_hashtree(Bucket, Key, Val, State),
+            ?INDEX(Obj, put, State),
             case RB of
                 true ->
                     Reply = {dw, Idx, Obj, ReqID};
@@ -1165,7 +1173,8 @@ do_diffobj_put({Bucket, Key}, DiffObj,
                 {ok, _UpdModState} ->
                     update_hashtree(Bucket, Key, Val, StateData),
                     update_index_write_stats(IndexBackend, IndexSpecs),
-                    update_vnode_stats(vnode_put, Idx, StartTS);
+                    update_vnode_stats(vnode_put, Idx, StartTS),
+                    ?INDEX(DiffObj, handoff, StateData);
                 _ -> nop
             end,
             Res;
@@ -1191,7 +1200,8 @@ do_diffobj_put({Bucket, Key}, DiffObj,
                         {ok, _UpdModState} ->
                             update_hashtree(Bucket, Key, Val, StateData),
                             update_index_write_stats(IndexBackend, IndexSpecs),
-                            update_vnode_stats(vnode_put, Idx, StartTS);
+                            update_vnode_stats(vnode_put, Idx, StartTS),
+                            ?INDEX(AMObj, handoff, StateData);
                         _ ->
                             nop
                     end,
