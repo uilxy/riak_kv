@@ -53,7 +53,8 @@
          hashtree_pid/1,
          rehash/3,
          request_hashtree_pid/1,
-         reformat_object/2]).
+         reformat_object/2,
+         get_state_partition/1]).
 
 %% riak_core_vnode API
 -export([init/1,
@@ -330,6 +331,11 @@ reformat_object(Partition, BKey) ->
     riak_core_vnode_master:sync_spawn_command({Partition, node()},
                                               {reformat_object, BKey},
                                               riak_kv_vnode_master).
+
+%% @doc Get the partition index from the vnode `State'.
+-spec get_state_partition(state()) -> index().
+get_state_partition(_=#state{idx=Partition}) ->
+    Partition.
 
 %% VNode callbacks
 
