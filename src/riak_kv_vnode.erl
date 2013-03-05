@@ -20,6 +20,11 @@
 %%
 %% -------------------------------------------------------------------
 -module(riak_kv_vnode).
+-ifdef(TEST).
+-define(INDEX(A, B, C), ok).
+-else.
+-define(INDEX(Obj, Reason, State), yz_kv:index(Obj, Reason, State)).
+-endif.
 -behaviour(riak_core_vnode).
 
 %% API
@@ -925,6 +930,7 @@ do_backend_delete(BKey, RObj, State = #state{mod = Mod, modstate = ModState}) ->
     case Mod:delete(Bucket, Key, IndexSpecs, ModState) of
         {ok, UpdModState} ->
             riak_kv_index_hashtree:delete(BKey, State#state.hashtrees),
+            ?INDEX(RObj, delete, State),
             update_index_delete_stats(IndexSpecs),
             State#state{modstate = UpdModState};
         {error, _Reason, UpdModState} ->
@@ -1071,6 +1077,7 @@ perform_put({true, Obj},
     case encode_and_put(Obj, Mod, Bucket, Key, IndexSpecs, ModState) of
         {{ok, UpdModState}, EncodedVal} ->
             update_hashtree(Bucket, Key, EncodedVal, State),
+            ?INDEX(Obj, put, State),
             case RB of
                 true ->
                     Reply = {dw, Idx, Obj, ReqID};
@@ -1397,6 +1404,7 @@ do_diffobj_put({Bucket, Key}, DiffObj,
                     update_hashtree(Bucket, Key, EncodedVal, StateData),
                     update_index_write_stats(IndexBackend, IndexSpecs),
                     update_vnode_stats(vnode_put, Idx, StartTS),
+                    ?INDEX(DiffObj, handoff, StateData),
                     InnerRes;
                 {InnerRes, _Val} ->
                     InnerRes
@@ -1422,6 +1430,7 @@ do_diffobj_put({Bucket, Key}, DiffObj,
                             update_hashtree(Bucket, Key, EncodedVal, StateData),
                             update_index_write_stats(IndexBackend, IndexSpecs),
                             update_vnode_stats(vnode_put, Idx, StartTS),
+                            ?INDEX(AMObj, handoff, StateData),
                             InnerRes;
                         {InnerRes, _EncodedVal} ->
                             InnerRes
