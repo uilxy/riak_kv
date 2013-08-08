@@ -78,14 +78,16 @@ process(Req=#rpbindexreq{}, State) ->
 maybe_perform_query({error, Reason}, _Req, State) ->
     {error, {format, Reason}, State};
 maybe_perform_query({ok, Query}, Req=#rpbindexreq{stream=true}, State) ->
-    #rpbindexreq{bucket=Bucket, max_results=MaxResults} = Req,
+    #rpbindexreq{bucket=B0, type=T, max_results=MaxResults} = Req,
     #state{client=Client} = State,
+    Bucket = maybe_bucket_type(T, B0),
     {ok, ReqId} = Client:stream_get_index(Bucket, Query, [{max_results, MaxResults}]),
     ReturnTerms = riak_index:return_terms(Req#rpbindexreq.return_terms, Query),
     {reply, {stream, ReqId}, State#state{req_id=ReqId, req=Req#rpbindexreq{return_terms=ReturnTerms}}};
 maybe_perform_query({ok, Query}, Req, State) ->
-    #rpbindexreq{bucket=Bucket, max_results=MaxResults, return_terms=ReturnTerms0} = Req,
+    #rpbindexreq{bucket=B0, type=T, max_results=MaxResults, return_terms=ReturnTerms0} = Req,
     #state{client=Client} = State,
+    Bucket = maybe_bucket_type(T, B0),
     ReturnTerms =  riak_index:return_terms(ReturnTerms0, Query),
     QueryResult = Client:get_index(Bucket, Query, [{max_results, MaxResults}]),
     handle_query_results(ReturnTerms, MaxResults, QueryResult , State).
@@ -151,3 +153,11 @@ process_stream({ReqId, Error}, ReqId, State=#state{req_id=ReqId}) ->
     {error, {format, Error}, State#state{req_id=undefined}};
 process_stream(_,_,State) ->
     {ignore, State}.
+
+%% Construct a {Type, Bucket} tuple, if not working with the default bucket
+maybe_bucket_type(undefined, B) ->
+    B;
+maybe_bucket_type(<<"default">>, B) ->
+    B;
+maybe_bucket_type(T, B) ->
+    {T, B}.
